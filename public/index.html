@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAME GAME</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090909;
+    --primary: #ff3366;
+    --secondary: #33ffcc;
+    --accent: #ffcc00;
+    --text: #e8e8e8;
+    --muted: #555;
+    --panel: #111;
+    --border: #222;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── LOBBY ───────────────────────────────────────────────── */
+  #lobby {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 2rem;
+    background: radial-gradient(ellipse at 50% 0%, #1a0a2e 0%, #090909 60%);
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 12vw, 9rem);
+    letter-spacing: 0.1em;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, var(--accent) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height: 1;
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.2); }
+  }
+
+  .tagline {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+    margin-bottom: 3rem;
+  }
+
+  .lobby-form {
+    display: flex; flex-direction: column; gap: 1rem;
+    width: 100%; max-width: 340px;
+  }
+
+  .lobby-form input {
+    background: #141414;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.85rem 1.2rem;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .lobby-form input:focus { border-color: var(--primary); }
+  .lobby-form input::placeholder { color: var(--muted); }
+
+  .btn-play {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 1rem;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 0 20px rgba(255,51,102,0.3);
+  }
+  .btn-play:hover { transform: translateY(-2px); box-shadow: 0 0 30px rgba(255,51,102,0.5); }
+  .btn-play:active { transform: translateY(0); }
+
+  /* ── MAIN GAME LAYOUT ────────────────────────────────────── */
+  #game-screen {
+    display: none;
+    height: 100vh;
+    grid-template-columns: 1fr 280px;
+    grid-template-rows: 48px 1fr;
+  }
+
+  /* Top bar */
+  #topbar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0 1.2rem;
+    background: #0d0d0d;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+  }
+  .tb-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: var(--primary); letter-spacing: 0.1em; }
+  .tb-room { color: var(--secondary); }
+  .tb-online { color: var(--muted); margin-left: auto; }
+  .tb-score { color: var(--accent); }
+
+  /* Game area */
+  #game-area {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  canvas {
+    display: block;
+    max-width: 100%; max-height: 100%;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  /* Game over overlay */
+  #overlay {
+    display: none;
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.85);
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 1rem;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-family: 'Bebas Neue', sans-serif; font-size: 3.5rem; color: var(--primary); }
+  #overlay p { color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.8rem; }
+  #overlay .score-big { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--accent); }
+  .btn-restart {
+    background: transparent; border: 1px solid var(--primary); color: var(--primary);
+    padding: 0.7rem 2rem; font-family: 'Space Mono', monospace; font-size: 0.85rem;
+    cursor: pointer; letter-spacing: 0.1em; transition: all 0.2s;
+  }
+  .btn-restart:hover { background: var(--primary); color: #000; }
+
+  /* ── CHAT SIDEBAR ────────────────────────────────────────── */
+  #chat-panel {
+    display: flex; flex-direction: column;
+    background: #0d0d0d;
+    border-left: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .chat-header {
+    padding: 0.8rem 1rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    display: flex; gap: 0.5rem; align-items: center;
+  }
+  .chat-header span { color: var(--secondary); }
+
+  #chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.8rem;
+    display: flex; flex-direction: column; gap: 0.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .msg {
+    display: flex; flex-direction: column;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .msg .author { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--secondary); margin-bottom: 1px; }
+  .msg .author.me { color: var(--accent); }
+  .msg .body { color: #ccc; word-break: break-word; }
+  .msg.system { color: var(--muted); font-size: 0.7rem; font-style: italic; }
+
+  .chat-input-row {
+    display: flex; gap: 0;
+    border-top: 1px solid var(--border);
+  }
+  #chat-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 0.75rem 0.8rem;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    outline: none;
+  }
+  #chat-input::placeholder { color: var(--muted); }
+  .btn-send {
+    background: transparent; border: none; border-left: 1px solid var(--border);
+    color: var(--primary); padding: 0 1rem; cursor: pointer; font-size: 1rem;
+    transition: background 0.15s;
+  }
+  .btn-send:hover { background: rgba(255,51,102,0.1); }
+
+  /* Scores in sidebar */
+  #scores-list {
+    border-top: 1px solid var(--border);
+    padding: 0.6rem 0.8rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  .scores-title { color: var(--muted); letter-spacing: 0.15em; margin-bottom: 0.4rem; font-size: 0.65rem; }
+  .score-row { display: flex; justify-content: space-between; padding: 2px 0; }
+  .score-row .sn { color: #aaa; } .score-row .sv { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ══ LOBBY ══════════════════════════════════════════════ -->
+<div id="lobby">
+  <div class="logo">SAME<br>GAME</div>
+  <div class="tagline">Everyone plays. No one knows.</div>
+  <div class="lobby-form">
+    <input id="nickname-input" type="text" placeholder="Your nickname (optional)" maxlength="20">
+    <button class="btn-play" onclick="startGame()">PLAY NOW</button>
+  </div>
+</div>
+
+<!-- ══ GAME SCREEN ════════════════════════════════════════ -->
+<div id="game-screen" style="display:grid">
+  <!-- Top bar -->
+  <div id="topbar">
+    <span class="tb-logo">SAME GAME</span>
+    <span>·</span>
+    <span class="tb-room">ROOM: <span id="tb-room-name">—</span></span>
+    <span>·</span>
+    <span class="tb-score">SCORE: <span id="tb-score">0</span></span>
+    <span class="tb-online"><span id="tb-online">0</span> online</span>
+  </div>
+
+  <!-- Game canvas area -->
+  <div id="game-area">
+    <canvas id="gameCanvas" width="560" height="520"></canvas>
+    <div id="overlay">
+      <h2 id="overlay-title">GAME OVER</h2>
+      <div class="score-big" id="overlay-score">0</div>
+      <p id="overlay-msg">Share your score in the chat!</p>
+      <button class="btn-restart" onclick="restartGame()">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <!-- Chat sidebar -->
+  <div id="chat-panel">
+    <div class="chat-header">💬 <span id="chat-room-label">ROOM</span> CHAT</div>
+    <div id="chat-messages"></div>
+    <div id="scores-list">
+      <div class="scores-title">🏆 LEADERBOARD</div>
+      <div id="scores-inner"></div>
+    </div>
+    <div class="chat-input-row">
+      <input id="chat-input" type="text" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="btn-send" onclick="sendChat()">➤</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// SESSION & GLOBALS
+// ═══════════════════════════════════════════════════════════════
+let session = null;
+let cfg = null;
+let ws = null;
+let score = 0;
+let gameRunning = false;
+let animFrame = null;
+
+function fingerprint() {
+  const nav = navigator;
+  const raw = [nav.userAgent, nav.language, screen.width, screen.height, new Date().getTimezoneOffset()].join('|');
+  let h = 0x811c9dc5;
+  for (let i = 0; i < raw.length; i++) { h ^= raw.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+  return h.toString(16);
+}
+
+async function startGame() {
+  const nickname = document.getElementById('nickname-input').value.trim() || null;
+  const resp = await fetch('/api/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fingerprint: fingerprint(), nickname })
+  });
+  session = await resp.json();
+  cfg = session.gameConfig;
+
+  // Apply palette to CSS vars
+  document.documentElement.style.setProperty('--bg', cfg.palette.bg);
+  document.documentElement.style.setProperty('--primary', cfg.palette.primary);
+  document.documentElement.style.setProperty('--secondary', cfg.palette.secondary);
+  document.documentElement.style.setProperty('--accent', cfg.palette.accent);
+
+  document.getElementById('lobby').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'grid';
+  document.getElementById('tb-room-name').textContent = session.room.toUpperCase();
+  document.getElementById('chat-room-label').textContent = session.room.toUpperCase();
+
+  connectWS();
+  loadHistory();
+  loadScores();
+  initGame();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WEBSOCKET
+// ═══════════════════════════════════════════════════════════════
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'join', room: session.room, playerId: session.playerId, nickname: session.nickname }));
+  };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'chat') addChatMsg(msg.nickname, msg.content, msg.playerId === session.playerId);
+    if (msg.type === 'system') addSystemMsg(msg.content);
+    if (msg.type === 'online_count') document.getElementById('tb-online').textContent = msg.count;
+    if (msg.type === 'score_update') loadScores();
+  };
+
+  ws.onclose = () => setTimeout(connectWS, 2000);
+}
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const content = input.value.trim();
+  if (!content || !ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: 'chat', content }));
+  input.value = '';
+}
+
+async function loadHistory() {
+  const res = await fetch(`/api/room/${session.room}/history`);
+  const msgs = await res.json();
+  msgs.forEach(m => addChatMsg(m.nickname, m.content, m.playerId === session.playerId));
+}
+
+async function loadScores() {
+  const res = await fetch(`/api/room/${session.room}/scores`);
+  const scores = await res.json();
+  const el = document.getElementById('scores-inner');
+  el.innerHTML = scores.map(s => `<div class="score-row"><span class="sn">${escHtml(s.nickname)}</span><span class="sv">${s.score}</span></div>`).join('');
+}
+
+function addChatMsg(nick, content, isMe) {
+  const el = document.createElement('div');
+  el.className = 'msg';
+  el.innerHTML = `<span class="author ${isMe ? 'me' : ''}">${escHtml(nick)}</span><span class="body">${escHtml(content)}</span>`;
+  const box = document.getElementById('chat-messages');
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+function addSystemMsg(content) {
+  const el = document.createElement('div');
+  el.className = 'msg system';
+  el.textContent = content;
+  const box = document.getElementById('chat-messages');
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ═══════════════════════════════════════════════════════════════
+// SCORE
+// ═══════════════════════════════════════════════════════════════
+function addScore(pts) {
+  score += pts;
+  document.getElementById('tb-score').textContent = score;
+  fetch('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playerId: session.playerId, score }) });
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'score_update', score }));
+}
+
+function gameOver(title = 'GAME OVER', msg = 'Share your score in the chat!') {
+  gameRunning = false;
+  cancelAnimationFrame(animFrame);
+  document.getElementById('overlay-title').textContent = title;
+  document.getElementById('overlay-score').textContent = score;
+  document.getElementById('overlay-msg').textContent = msg;
+  document.getElementById('overlay').classList.add('show');
+  loadScores();
+}
+
+function restartGame() {
+  document.getElementById('overlay').classList.remove('show');
+  score = 0;
+  document.getElementById('tb-score').textContent = '0';
+  initGame();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GAME ROUTER
+// ═══════════════════════════════════════════════════════════════
+function initGame() {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  gameRunning = true;
+
+  if (cfg.type === 'dodge') initDodge(canvas, ctx);
+  else if (cfg.type === 'breakout') initBreakout(canvas, ctx);
+  else if (cfg.type === 'memory') initMemory(canvas, ctx);
+  else if (cfg.type === 'quiz') initQuiz(canvas, ctx);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GAME 1: DODGE
+// ═══════════════════════════════════════════════════════════════
+function initDodge(canvas, ctx) {
+  const W = canvas.width, H = canvas.height;
+  const P = cfg.palette;
+  const playerSize = 22;
+  let player = { x: W / 2, y: H - 80 };
+  let obstacles = [];
+  let particles = [];
+  let tick = 0;
+  let mouseX = W / 2;
+  let keys = {};
+  let spawnTimer = 0;
+
+  canvas.onmousemove = e => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = (e.clientX - rect.left) * (W / rect.width);
+  };
+  window.onkeydown = e => keys[e.key] = true;
+  window.onkeyup = e => keys[e.key] = false;
+
+  function drawPlayer(x, y) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = P.secondary;
+    ctx.shadowBlur = 12; ctx.shadowColor = P.secondary;
+    const s = cfg.playerShape;
+    if (s === 'ship') {
+      ctx.beginPath(); ctx.moveTo(0, -playerSize); ctx.lineTo(playerSize * 0.6, playerSize * 0.6);
+      ctx.lineTo(0, playerSize * 0.3); ctx.lineTo(-playerSize * 0.6, playerSize * 0.6); ctx.closePath(); ctx.fill();
+    } else if (s === 'arrow') {
+      ctx.beginPath(); ctx.moveTo(0, -playerSize); ctx.lineTo(playerSize * 0.7, playerSize);
+      ctx.lineTo(0, playerSize * 0.4); ctx.lineTo(-playerSize * 0.7, playerSize); ctx.closePath(); ctx.fill();
+    } else if (s === 'star') {
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a = (i * 4 * Math.PI / 5) - Math.PI / 2;
+        const b = ((i * 4 + 2) * Math.PI / 5) - Math.PI / 2;
+        ctx.lineTo(Math.cos(a) * playerSize, Math.sin(a) * playerSize);
+        ctx.lineTo(Math.cos(b) * playerSize * 0.45, Math.sin(b) * playerSize * 0.45);
+      }
+      ctx.closePath(); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(0, 0, playerSize, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawObstacle(o) {
+    ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.rot || 0);
+    ctx.fillStyle = P.primary;
+    ctx.shadowBlur = 8; ctx.shadowColor = P.primary;
+    const sh = cfg.obstacleShape, r = o.size;
+    if (sh === 'circle') { ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); }
+    else if (sh === 'square') { ctx.fillRect(-r, -r, r * 2, r * 2); }
+    else if (sh === 'triangle') {
+      ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, r); ctx.lineTo(-r, r); ctx.closePath(); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawBg() {
+    ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);
+    const bp = cfg.bgPattern;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+    if (bp === 'grid') {
+      for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    } else if (bp === 'dots') {
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      for (let x = 20; x < W; x += 40) for (let y = 20; y < H; y += 40) { ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill(); }
+    } else if (bp === 'stars') {
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      for (let i = 0; i < 60; i++) { const sx = (i * 97 + 37) % W; const sy = (i * 137 + 53) % H; ctx.fillRect(sx, sy, 1.5, 1.5); }
+    }
+  }
+
+  function loop() {
+    if (!gameRunning) return;
+    tick++;
+    spawnTimer++;
+
+    // Move player
+    const speed = 5;
+    if (keys['ArrowLeft'] || keys['a']) player.x -= speed;
+    if (keys['ArrowRight'] || keys['d']) player.x += speed;
+    if (!keys['ArrowLeft'] && !keys['ArrowRight'] && !keys['a'] && !keys['d']) {
+      player.x += (mouseX - player.x) * 0.12;
+    }
+    player.x = Math.max(playerSize, Math.min(W - playerSize, player.x));
+
+    // Spawn
+    if (spawnTimer > 60 / cfg.obstacleRate) {
+      spawnTimer = 0;
+      obstacles.push({ x: Math.random() * (W - 40) + 20, y: -20, size: 14 + Math.random() * 14, rot: 0, drot: (Math.random() - 0.5) * 0.1 });
+    }
+
+    // Update
+    const spd = cfg.speed;
+    obstacles.forEach(o => { o.y += spd + tick * 0.002; o.rot += o.drot; });
+    obstacles = obstacles.filter(o => {
+      if (o.y > H + 30) { addScore(10); return false; }
+      const dx = o.x - player.x, dy = o.y - player.y;
+      if (Math.sqrt(dx * dx + dy * dy) < playerSize + o.size - 4) {
+        gameOver('GAME OVER', `You dodged ${Math.floor(score / 10)} obstacles!`);
+        return false;
+      }
+      return true;
+    });
+
+    drawBg();
+    obstacles.forEach(drawObstacle);
+    drawPlayer(player.x, player.y);
+
+    // HUD
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, H - 30, W, 30);
+    ctx.fillStyle = '#aaa'; ctx.font = '11px Space Mono,monospace';
+    ctx.fillText('← → or mouse to move', 10, H - 10);
+
+    animFrame = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GAME 2: BREAKOUT
+// ═══════════════════════════════════════════════════════════════
+function initBreakout(canvas, ctx) {
+  const W = canvas.width, H = canvas.height;
+  const P = cfg.palette;
+  const pW = cfg.paddleSize, pH = 12;
+  let paddleX = W / 2 - pW / 2;
+  let balls = [{ x: W / 2, y: H - 100, dx: (Math.random() > 0.5 ? 1 : -1) * cfg.ballSpeed, dy: -cfg.ballSpeed }];
+  if (cfg.multiball) balls.push({ x: W / 2 + 20, y: H - 100, dx: -cfg.ballSpeed * 0.8, dy: -cfg.ballSpeed });
+
+  // Build bricks
+  const bricks = [];
+  const bW = Math.floor((W - 40) / cfg.cols);
+  const bH = 20;
+  for (let r = 0; r < cfg.rows; r++) {
+    for (let c = 0; c < cfg.cols; c++) {
+      let alive = true;
+      if (cfg.brickPattern === 'checkers') alive = (r + c) % 2 === 0;
+      else if (cfg.brickPattern === 'diagonal') alive = (r + c) % 3 !== 0;
+      else if (cfg.brickPattern === 'random') alive = Math.random() > 0.2;
+      if (alive) bricks.push({ x: 20 + c * bW, y: 50 + r * (bH + 6), w: bW - 4, h: bH, hp: r < 2 ? 1 : (r < 4 ? 2 : 3), maxHp: r < 2 ? 1 : (r < 4 ? 2 : 3) });
+    }
+  }
+
+  let mouseX = W / 2;
+  canvas.onmousemove = e => { const rect = canvas.getBoundingClientRect(); mouseX = (e.clientX - rect.left) * (W / rect.width); };
+  const keys = {};
+  window.onkeydown = e => keys[e.key] = true;
+  window.onkeyup = e => keys[e.key] = false;
+
+  function loop() {
+    if (!gameRunning) return;
+    // Paddle
+    const spd = 7;
+    if (keys['ArrowLeft'] || keys['a']) paddleX -= spd;
+    if (keys['ArrowRight'] || keys['d']) paddleX += spd;
+    else paddleX += (mouseX - pW / 2 - paddleX) * 0.15;
+    paddleX = Math.max(0, Math.min(W - pW, paddleX));
+
+    // Balls
+    balls = balls.filter(ball => {
+      ball.x += ball.dx; ball.y += ball.dy;
+      if (ball.x < 8 || ball.x > W - 8) ball.dx *= -1;
+      if (ball.y < 8) ball.dy *= -1;
+      if (ball.y > H + 20) return false;
+
+      // Paddle
+      if (ball.y + 8 > H - 60 && ball.y < H - 50 && ball.x > paddleX && ball.x < paddleX + pW) {
+        ball.dy = -Math.abs(ball.dy);
+        ball.dx += ((ball.x - (paddleX + pW / 2)) / (pW / 2)) * 2;
+      }
+
+      // Bricks
+      for (let i = bricks.length - 1; i >= 0; i--) {
+        const b = bricks[i];
+        if (ball.x > b.x && ball.x < b.x + b.w && ball.y > b.y && ball.y < b.y + b.h) {
+          b.hp--;
+          if (b.hp <= 0) { addScore(50 + b.maxHp * 20); bricks.splice(i, 1); }
+          ball.dy *= -1;
+          break;
+        }
+      }
+      return true;
+    });
+
+    if (balls.length === 0) gameOver('BALL LOST', 'Better luck next time!');
+    if (bricks.length === 0) gameOver('YOU WIN! 🎉', 'All bricks destroyed!');
+
+    // Draw
+    ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);
+
+    bricks.forEach(b => {
+      const t = b.hp / b.maxHp;
+      ctx.fillStyle = t > 0.66 ? P.primary : t > 0.33 ? P.accent : P.secondary;
+      ctx.shadowBlur = 6; ctx.shadowColor = ctx.fillStyle;
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.shadowBlur = 0;
+    });
+
+    // Paddle
+    ctx.fillStyle = P.secondary;
+    ctx.shadowBlur = 10; ctx.shadowColor = P.secondary;
+    ctx.beginPath(); ctx.roundRect(paddleX, H - 60, pW, pH, 4); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Ball(s)
+    balls.forEach(ball => {
+      ctx.fillStyle = P.accent;
+      ctx.shadowBlur = 12; ctx.shadowColor = P.accent;
+      ctx.beginPath(); ctx.arc(ball.x, ball.y, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, H - 30, W, 30);
+    ctx.fillStyle = '#aaa'; ctx.font = '11px Space Mono,monospace';
+    ctx.fillText('← → or mouse to move', 10, H - 10);
+
+    animFrame = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GAME 3: MEMORY
+// ═══════════════════════════════════════════════════════════════
+function initMemory(canvas, ctx) {
+  const W = canvas.width, H = canvas.height;
+  const P = cfg.palette;
+  const G = cfg.gridSize;
+  const total = G * G;
+  const pairs = total / 2;
+
+  const EMOJI_SETS = {
+    emoji: ['🎮','🎯','🏆','⚡','🔥','💎','🌈','🎪','🦊','🐙','🌸','⭐','🎸','🚀','🎭','🦋','🍀','🎲'],
+    shapes: ['●','■','▲','◆','★','✦','❋','⬟','⬡','⬢','⬣','⊕','⊗','⊞','⊠','⊡'],
+    letters: 'ABCDEFGHIJKLMNOPQRS'.split(''),
+    numbers: '1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18'.split(' '),
+  };
+
+  const symbolSet = EMOJI_SETS[cfg.symbols] || EMOJI_SETS.emoji;
+  const chosen = symbolSet.slice(0, pairs);
+  const cards = [...chosen, ...chosen].sort(() => Math.random() - 0.5);
+
+  const cW = Math.floor((W - 80) / G);
+  const cH = Math.floor((H - 120) / G);
+  const offX = (W - G * cW) / 2;
+  const offY = 70;
+
+  let flipped = [];
+  let matched = new Set();
+  let locked = false;
+  let attempts = 0;
+
+  canvas.onclick = e => {
+    if (locked) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (W / rect.width);
+    const my = (e.clientY - rect.top) * (H / rect.height);
+    const col = Math.floor((mx - offX) / cW);
+    const row = Math.floor((my - offY) / cH);
+    const idx = row * G + col;
+    if (col < 0 || col >= G || row < 0 || row >= G) return;
+    if (flipped.includes(idx) || matched.has(idx)) return;
+
+    flipped.push(idx);
+    if (flipped.length === 2) {
+      attempts++;
+      locked = true;
+      setTimeout(() => {
+        if (cards[flipped[0]] === cards[flipped[1]]) {
+          matched.add(flipped[0]); matched.add(flipped[1]);
+          addScore(100 + Math.max(0, 200 - attempts * 10));
+          if (matched.size === total) gameOver('YOU WIN! 🎉', `Matched all in ${attempts} attempts!`);
+        }
+        flipped = []; locked = false;
+      }, cfg.flipDelay);
+    }
+  };
+
+  function draw() {
+    if (!gameRunning) return;
+    ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = P.primary;
+    ctx.font = 'bold 20px Bebas Neue,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`MEMORY  ·  ${matched.size / 2} / ${pairs} pairs`, W / 2, 40);
+    ctx.textAlign = 'left';
+
+    for (let i = 0; i < total; i++) {
+      const col = i % G, row = Math.floor(i / G);
+      const x = offX + col * cW + 5, y = offY + row * cH + 5;
+      const w = cW - 10, h = cH - 10;
+      const visible = flipped.includes(i) || matched.has(i);
+
+      ctx.fillStyle = matched.has(i) ? P.secondary : visible ? '#2a2a2a' : '#1a1a1a';
+      ctx.strokeStyle = matched.has(i) ? P.secondary : visible ? P.primary : P.muted || '#333';
+      ctx.lineWidth = matched.has(i) ? 2 : 1;
+      ctx.shadowBlur = matched.has(i) ? 10 : 0; ctx.shadowColor = P.secondary;
+      ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill(); ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (visible) {
+        ctx.fillStyle = matched.has(i) ? '#000' : P.accent;
+        ctx.font = `${Math.min(cW, cH) * 0.38}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(cards[i], x + w / 2, y + h / 2);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      } else {
+        ctx.fillStyle = P.muted || '#444';
+        ctx.font = `${Math.min(cW, cH) * 0.3}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('?', x + w / 2, y + h / 2);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      }
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fillRect(0, H - 30, W, 30);
+    ctx.fillStyle = '#777'; ctx.font = '11px Space Mono,monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(`Click cards to flip · Attempts: ${attempts}`, 10, H - 10);
+
+    animFrame = requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GAME 4: QUIZ
+// ═══════════════════════════════════════════════════════════════
+function initQuiz(canvas, ctx) {
+  const W = canvas.width, H = canvas.height;
+  const P = cfg.palette;
+
+  function makeQuestions() {
+    const qs = [];
+    const cat = cfg.category;
+    const diff = cfg.difficulty;
+    const count = cfg.questionsCount;
+    const rng = seededRng(cfg.seed + 99);
+
+    for (let i = 0; i < count; i++) {
+      if (cat === 'math') {
+        const range = diff === 'easy' ? 10 : diff === 'medium' ? 50 : 100;
+        const a = Math.floor(rng() * range) + 1;
+        const b = Math.floor(rng() * range) + 1;
+        const ops = diff === 'easy' ? ['+', '-'] : diff === 'medium' ? ['+', '-', '×'] : ['+', '-', '×', '÷'];
+        const op = ops[Math.floor(rng() * ops.length)];
+        let ans;
+        if (op === '+') ans = a + b;
+        else if (op === '-') ans = a - b;
+        else if (op === '×') ans = a * b;
+        else { const c = a * b; qs.push({ q: `${c} ÷ ${a} = ?`, ans: b, choices: shuffle([b, b + Math.floor(rng()*5)+1, b - Math.floor(rng()*3)-1, b + Math.floor(rng()*8)+3].filter((v,i,a)=>a.indexOf(v)===i).slice(0,4), rng) }); continue; }
+        const wrong = [ans + Math.floor(rng() * 5) + 1, ans - Math.floor(rng() * 3) - 1, ans + Math.floor(rng() * 8) + 3];
+        qs.push({ q: `${a} ${op} ${b} = ?`, ans, choices: shuffle([ans, ...wrong].filter((v,i,a)=>a.indexOf(v)===i).slice(0,4), rng) });
+      } else if (cat === 'sequence') {
+        const step = Math.floor(rng() * 5) + 2;
+        const start = Math.floor(rng() * 20) + 1;
+        const seq = [start, start+step, start+step*2, start+step*3];
+        const ans = start + step * 4;
+        const wrong = [ans + step, ans - step, ans + 1];
+        qs.push({ q: `${seq.join(', ')}, ?`, ans, choices: shuffle([ans, ...wrong].filter((v,i,a)=>a.indexOf(v)===i).slice(0,4), rng) });
+      } else if (cat === 'logic') {
+        const puzzles = [
+          { q: 'If all Bloops are Razzies and all Razzies are Lazzies, are all Bloops Lazzies?', ans: 'Yes', choices: ['Yes', 'No', 'Maybe', 'Cannot tell'] },
+          { q: 'A clock shows 3:15. What is the angle between the hands?', ans: '7.5°', choices: ['7.5°', '15°', '0°', '30°'] },
+          { q: 'You have 3 apples. You take away 2. How many do YOU have?', ans: '2', choices: ['2', '1', '3', '0'] },
+          { q: 'What comes next? ○ ● ○○ ●● ○○○ …', ans: '●●●', choices: ['●●●', '○○○○', '●●', '○●○'] },
+          { q: 'A is B\'s sister. B is C\'s father. C is D\'s brother. D is A\'s …?', ans: 'Niece/Nephew', choices: ['Niece/Nephew', 'Sibling', 'Parent', 'Cousin'] },
+        ];
+        qs.push(puzzles[Math.floor(rng() * puzzles.length)]);
+      } else { // anagram
+        const words = ['PLANET','SILENT','LISTEN','GAMING','CLEVER','FOREST','STREAM','BRIDGE','CASTLE','FLIGHT','GARDEN','ISLAND'];
+        const w = words[Math.floor(rng() * words.length)];
+        const scrambled = w.split('').sort(() => rng() - 0.5).join('');
+        const decoys = words.filter(x => x !== w).sort(() => rng() - 0.5).slice(0, 3);
+        qs.push({ q: `Unscramble: ${scrambled}`, ans: w, choices: shuffle([w, ...decoys], rng) });
+      }
+    }
+    return qs;
+  }
+
+  function seededRng(seed) {
+    let s = seed;
+    return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+  }
+  function shuffle(arr, rng) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+
+  const questions = makeQuestions();
+  let qIdx = 0;
+  let timeLeft = cfg.timeLimit;
+  let timerInterval = null;
+  let answered = false;
+  let selectedChoice = null;
+  let choiceResult = null;
+  let streak = 0;
+
+  function startTimer() {
+    clearInterval(timerInterval);
+    timeLeft = cfg.timeLimit;
+    answered = false; selectedChoice = null; choiceResult = null;
+    timerInterval = setInterval(() => {
+      if (!gameRunning) { clearInterval(timerInterval); return; }
+      timeLeft--;
+      if (timeLeft <= 0) { clearInterval(timerInterval); nextQ(false); }
+    }, 1000);
+  }
+
+  function nextQ(correct) {
+    answered = true;
+    if (correct) {
+      streak++;
+      addScore(100 + streak * 50 + timeLeft * 5);
+    } else {
+      streak = 0;
+    }
+    setTimeout(() => {
+      qIdx++;
+      if (qIdx >= questions.length) {
+        gameOver('QUIZ DONE! 🎓', `You scored on ${questions.length} questions!`);
+        return;
+      }
+      startTimer();
+    }, 1200);
+  }
+
+  const choiceBoxes = [];
+  canvas.onclick = e => {
+    if (answered) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (W / rect.width);
+    const my = (e.clientY - rect.top) * (H / rect.height);
+    for (let i = 0; i < choiceBoxes.length; i++) {
+      const b = choiceBoxes[i];
+      if (mx > b.x && mx < b.x + b.w && my > b.y && my < b.y + b.h) {
+        selectedChoice = i;
+        const q = questions[qIdx];
+        choiceResult = String(q.choices[i]) === String(q.ans);
+        clearInterval(timerInterval);
+        nextQ(choiceResult);
+        break;
+      }
+    }
+  };
+
+  startTimer();
+
+  function draw() {
+    if (!gameRunning) return;
+    ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);
+
+    const q = questions[Math.min(qIdx, questions.length - 1)];
+    choiceBoxes.length = 0;
+
+    // Progress
+    const prog = qIdx / questions.length;
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, W, 6);
+    ctx.fillStyle = P.secondary; ctx.fillRect(0, 0, W * prog, 6);
+
+    // Timer ring
+    const cx = W - 50, cy = 45, r = 28;
+    ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = timeLeft > 5 ? P.secondary : P.primary; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (timeLeft / cfg.timeLimit)); ctx.stroke();
+    ctx.fillStyle = '#eee'; ctx.font = 'bold 16px Space Mono,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(timeLeft, cx, cy);
+
+    // Q number
+    ctx.fillStyle = P.primary; ctx.font = '13px Space Mono,monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(`Q ${qIdx + 1} / ${questions.length}  · STREAK ${streak}`, 20, 50);
+
+    // Category badge
+    ctx.fillStyle = P.accent + '33';
+    ctx.beginPath(); ctx.roundRect(20, 62, 120, 22, 4); ctx.fill();
+    ctx.fillStyle = P.accent; ctx.font = '11px Space Mono,monospace'; ctx.textAlign = 'center';
+    ctx.fillText(cfg.category.toUpperCase() + ' · ' + cfg.difficulty.toUpperCase(), 80, 77);
+
+    // Question
+    ctx.fillStyle = '#eee'; ctx.font = 'bold 19px Inter,sans-serif'; ctx.textAlign = 'center';
+    const words = q.q.split(' ');
+    let line = '', lines = [], maxW = W - 60;
+    words.forEach(w => {
+      const test = line + (line ? ' ' : '') + w;
+      if (ctx.measureText(test).width > maxW) { lines.push(line); line = w; } else line = test;
+    });
+    lines.push(line);
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, 130 + i * 28));
+
+    // Choices
+    const startY = 230;
+    const bH = 52, gap = 12;
+    q.choices.forEach((c, i) => {
+      const bX = 40, bY = startY + i * (bH + gap), bW = W - 80;
+      choiceBoxes.push({ x: bX, y: bY, w: bW, h: bH });
+
+      let bg = '#1c1c1c', border = '#2a2a2a', textC = '#ccc';
+      if (answered) {
+        if (String(c) === String(q.ans)) { bg = P.secondary + '22'; border = P.secondary; textC = P.secondary; }
+        else if (i === selectedChoice) { bg = P.primary + '22'; border = P.primary; textC = P.primary; }
+      }
+
+      ctx.fillStyle = bg; ctx.strokeStyle = border; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(bX, bY, bW, bH, 8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = textC; ctx.font = '15px Inter,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(c), bX + bW / 2, bY + bH / 2);
+    });
+
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    animFrame = requestAnimationFrame(draw);
+  }
+  draw();
+}
+</script>
+</body>
+</html>
